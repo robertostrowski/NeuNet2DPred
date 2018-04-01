@@ -11,8 +11,13 @@ public class NeuralNet : MonoBehaviour
      Layer[] layers;
      float learningRate;
 
+     public enum DatasetType { Input, Output };
+
      // Path file containing the weights of saved Neural Network
      string NNStateFileDirectory = Directory.GetCurrentDirectory() + @"\Assets\Neural Network\2D predictor.txt";
+
+     // Path file containing datasets
+     string NNDatasetsDirectory = Directory.GetCurrentDirectory() + @"\Assets\Neural Network\datasets.txt";
 
      public NeuralNet(int[] layer, float learningRate)
      {
@@ -38,6 +43,9 @@ public class NeuralNet : MonoBehaviour
      // Podanie dalej stopniowo całej sieci
      public float[] FeedForward(float[] inputs)
      {
+          // Save dataset into a file
+          StoreDataset(inputs, DatasetType.Input);
+
           layers[0].FeedForward(inputs); // pierwsza warstwa jedynie podaje niezmienione wejścia
           for (int i = 1; i < layers.Length; i++)
           {
@@ -48,6 +56,9 @@ public class NeuralNet : MonoBehaviour
 
      public void BackProp(float[] expected)
      {
+          // Save dataset into a file
+          StoreDataset(expected, DatasetType.Output);
+
           for (int i = layers.Length - 1; i >= 0; i--)
           {
                if (i == layers.Length - 1) // jeśli obecna warstwa jest ostatnią, to nie ma z czego podać wstecz
@@ -91,9 +102,7 @@ public class NeuralNet : MonoBehaviour
                               layers[i].weights[k, j] = float.Parse(weightsTab[l++]);
                          }
                }
-               Debug.Log("Neural Network restored from file successfully");
           }
-          Debug.Log("No NN state file");
      }
 
      // Saving a Neural Network state to a .txt file, not used currently
@@ -121,21 +130,92 @@ public class NeuralNet : MonoBehaviour
 
           // Save all the info to a file
           File.WriteAllText(NNStateFileDirectory, contents);
-          Debug.Log("File created successfully, Neural Network state preserved");
      }
 
-     // Delete file containing Neural Network state, not used at the momemnt
-     public void WipeNN()
+     // Stores a table of floats and a string description before them
+     public void StoreDataset(float[] contents, DatasetType dt)
      {
-          // If file exist delete it, we'll create a new one
-          if (File.Exists(NNStateFileDirectory))
+          // Convert float table to one string separated by spaces
+          string stringTable = "";
+          foreach (float f in contents)
+               stringTable += f.ToString() + " ";
+
+          // Add the string to the end of a file
+          string appendedText = stringTable;
+          // Add a "*" if its the end of a set
+          if (dt.Equals(DatasetType.Output))
           {
-               File.Delete(NNStateFileDirectory);
+               appendedText += "*";
           }
+          // Add a new line character if the set was inputs
+          if (dt.Equals(DatasetType.Input))
+          {
+               appendedText += Environment.NewLine;
+          }
+          File.AppendAllText(NNDatasetsDirectory, appendedText);
+
+     }
+     
+     // Loads a .txt file with datasets into a 3d vector and returns it. For 3d float array, use GetDatasetsAsFloats() instead
+     public List<List<List<float>>> GetDatasets()
+     {
+          string contents = File.ReadAllText(NNDatasetsDirectory);
+          string[] sets = contents.Split(new[] { "*" }, StringSplitOptions.RemoveEmptyEntries);
+
+          List<List<List<float>>> datasets = new List<List<List<float>>>();
+          foreach (string s in sets)
+          {
+               string[] set = s.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+               List<List<float>> setList = new List<List<float>>();
+               foreach (string vector in set)
+               {
+                    List<float> v = new List<float>();
+                    string[] numbers = vector.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string number in numbers)
+                    {
+                         v.Add(float.Parse(number));
+                    }
+                    setList.Add(v);
+               }
+               datasets.Add(setList);
+          }
+          return datasets;
+     }
+
+     // Retrieving datasets from a .txt file
+     // Returns float[i][j][k], where:
+     // i is the number of dataset
+     // j is 0 for inputs, 1 for outputs
+     // k is the k-th float element of an input or an output
+     public float[][][] GetDatasetsAsFloat()
+     {
+          string contents = File.ReadAllText(NNDatasetsDirectory);
+          string[] sets = contents.Split(new[] { "*" }, StringSplitOptions.RemoveEmptyEntries);
+
+          float[][][] datasets = new float[sets.Length][][];
+
+          for (int i = 0; i < sets.Length; i++)
+          {
+               string[] setTab = sets[i].Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+               datasets[i] = new float[setTab.Length][];
+               for (int j = 0; j < setTab.Length; j++)
+               {
+                    string[] vector = setTab[j].Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+                    datasets[i][j] = new float[vector.Length];
+                    float[] v = new float[vector.Length];
+                    for (int k = 0; k < vector.Length; k++)
+                    {
+                         v[k] = float.Parse(vector[k]);
+                    }
+                    datasets[i][j] = v;
+               }
+          }
+          return datasets;
      }
 
      public class Layer
      {
+
           public int numberOfInputs; // liczba neuronów w poprzedniej warstwie
           public int numberOfOutputs; // liczba neuronów w obecnej warstwie
 
@@ -259,6 +339,5 @@ public class NeuralNet : MonoBehaviour
                     }
                }
           }
-
      }
 }
