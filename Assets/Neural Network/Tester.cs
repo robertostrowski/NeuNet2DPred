@@ -134,7 +134,7 @@ public class Dataset
                points[i] = new Point();
 
           // we're selecting 4 points on a circle
-          float r = 0.1f;
+          float r = 1.0f;
           float angle = UnityEngine.Random.Range(0, 2.0f * Mathf.PI);
 
           // find a random point on a circle
