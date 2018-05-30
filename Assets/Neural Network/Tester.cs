@@ -35,7 +35,7 @@ public class Tester : MonoBehaviour
           for (int i = 0; i < lastPositions.Length; i++)
                lastPositions[i] = 0.0f;
 
-          net = new NeuralNet(new int[] { inputNeuronCount, 13, 13, outputNeuronCount }, 0.00333f);
+          net = new NeuralNet(new int[] { inputNeuronCount, 13, outputNeuronCount }, 0.00333f);
           Train(10000, DataType.Random);
      }
 
@@ -134,7 +134,7 @@ public class Dataset
                points[i] = new Point();
 
           // we're selecting 4 points on a circle
-          float r = 1.0f;
+          float r = 0.1f;
           float angle = UnityEngine.Random.Range(0, 2.0f * Mathf.PI);
 
           // find a random point on a circle
