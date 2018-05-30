@@ -15,8 +15,6 @@ public class Tester : MonoBehaviour
      public static int inputNeuronCount = 20;
      public static int outputNeuronCount = 6;
 
-     // DO kontroli liczby iteracji
-     private int iterations;
 
      float[] lastPositions = new float[inputNeuronCount];
      float[] predictedVectors = new float[outputNeuronCount];
@@ -32,7 +30,6 @@ public class Tester : MonoBehaviour
           ball2 = GameObject.Find("ball2").transform;
           ball3 = GameObject.Find("ball3").transform;
 
-          iterations = 0;
 
           // reset table
           for (int i = 0; i < lastPositions.Length; i++)
@@ -45,9 +42,8 @@ public class Tester : MonoBehaviour
      // Update is called once per frame
      void Update()
      {
-          // zrobione żeby całość wykonywała się co X iteracji
-          if (iterations % 10 == 0)
-          {
+         
+          
                // new position
                float newX = playerTransform.position.x;
                float newY = playerTransform.position.z;
@@ -70,7 +66,8 @@ public class Tester : MonoBehaviour
                // put the new point into the table
                lastPositions[lastPositions.Length - 2] = newX;
                lastPositions[lastPositions.Length - 1] = newY;
-
+                
+               // Get predicted vectors by providing actual vectors
                predictedVectors = Test(lastPosVectors);
 
                // set ball positions based on our output
@@ -78,8 +75,6 @@ public class Tester : MonoBehaviour
                ball2.position = new Vector3(ball1.position.x + predictedVectors[2], ball1.position.y, ball1.position.z + predictedVectors[3]);
                ball3.position = new Vector3(ball2.position.x + predictedVectors[4], ball2.position.y, ball2.position.z + predictedVectors[5]);
 
-          }
-          iterations++;
      }
 
      private void OnGUI()

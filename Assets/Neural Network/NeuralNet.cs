@@ -41,6 +41,7 @@ public class NeuralNet : MonoBehaviour
           return layers[layers.Length - 1].outputs; // zwrot wyjść ostatniej warstwy
      }
 
+    // Propagacja wsteczna (nauka sieci wg tego co oczekujemy)
      public void BackProp(float[] expected)
      {
           for (int i = layers.Length - 1; i >= 0; i--)
@@ -209,7 +210,7 @@ public class NeuralNet : MonoBehaviour
                     gamma[i] *= TanHDer(outputs[i]);
                }
 
-               //Caluclating detla weights
+               //Caluclating delta weights
                for (int i = 0; i < numberOfOutputs; i++)
                {
                     for (int j = 0; j < numberOfInputs; j++)
