@@ -15,10 +15,13 @@ public class Tester : MonoBehaviour
      public static int inputNeuronCount = 20;
      public static int outputNeuronCount = 6;
 
+     public float distPerIter;
 
      float[] lastPositions = new float[inputNeuronCount];
      float[] predictedVectors = new float[outputNeuronCount];
      NeuralNet net;
+
+     float iterations = 0;
 
      // Use this for initialization
      void Start()
@@ -30,73 +33,91 @@ public class Tester : MonoBehaviour
           ball2 = GameObject.Find("ball2").transform;
           ball3 = GameObject.Find("ball3").transform;
 
-
           // reset table
           for (int i = 0; i < lastPositions.Length; i++)
                lastPositions[i] = 0.0f;
 
           net = new NeuralNet(new int[] { inputNeuronCount, 13, outputNeuronCount }, 0.00333f);
-          Train(10000, DataType.Random);
+          Train(10000);
      }
 
      // Update is called once per frame
      void Update()
      {
-         
-          
-               // new position
-               float newX = playerTransform.position.x;
-               float newY = playerTransform.position.z;
+          if (iterations++ % 10 != 0)
+               return;
+          // new position
+          float newX = playerTransform.position.x;
+          float newY = playerTransform.position.z;          
 
-               // nn is taking vectors for input
-               float[] lastPosVectors = new float[lastPositions.Length];
-               // fill the table with vectors except for 2 last elements
-               for(int i = 0; i < lastPosVectors.Length - 2; i++)
-               {
-                    lastPosVectors[i] = lastPositions[i + 2] - lastPositions[i];
-               }
-               // fill the last 2 elements
-               lastPosVectors[lastPosVectors.Length - 2] = newX - lastPosVectors[lastPosVectors.Length - 2];
-               lastPosVectors[lastPosVectors.Length - 1] = newY - lastPosVectors[lastPosVectors.Length - 1];
+          // nn is taking vectors for input
+          float[] lastPosVectors = new float[lastPositions.Length];
+          // fill the table with vectors except for 2 last elements
+          for (int i = 0; i < lastPosVectors.Length - 2; i++)
+          {
+               lastPosVectors[i] = lastPositions[i + 2] - lastPositions[i];
+          }
+          // fill the last 2 elements
+          lastPosVectors[lastPosVectors.Length - 2] = newX - lastPositions[lastPosVectors.Length - 2];
+          lastPosVectors[lastPosVectors.Length - 1] = newY - lastPositions[lastPosVectors.Length - 1];
 
-               // shift table, wipe oldest point and make room for new one
-               for (int i = 0; i < lastPositions.Length - 2; i++)
-                    lastPositions[i] = lastPositions[i + 2];
+          // shift table, wipe oldest point and make room for new one
+          for (int i = 0; i < lastPositions.Length - 2; i++)
+               lastPositions[i] = lastPositions[i + 2];
 
-               // put the new point into the table
-               lastPositions[lastPositions.Length - 2] = newX;
-               lastPositions[lastPositions.Length - 1] = newY;
-                
-               // Get predicted vectors by providing actual vectors
-               predictedVectors = Test(lastPosVectors);
+          // put the new point into the table
+          lastPositions[lastPositions.Length - 2] = newX;
+          lastPositions[lastPositions.Length - 1] = newY;
 
-               // set ball positions based on our output
-               ball1.position = new Vector3(playerTransform.position.x + predictedVectors[0], playerTransform.position.y, playerTransform.position.z + predictedVectors[1]);
-               ball2.position = new Vector3(ball1.position.x + predictedVectors[2], ball1.position.y, ball1.position.z + predictedVectors[3]);
-               ball3.position = new Vector3(ball2.position.x + predictedVectors[4], ball2.position.y, ball2.position.z + predictedVectors[5]);
+          // Get predicted vectors by providing actual vectors
+          predictedVectors = Test(lastPosVectors);
 
+          // set ball positions based on our output
+          ball1.position = new Vector3(playerTransform.position.x + predictedVectors[0], playerTransform.position.y, playerTransform.position.z + predictedVectors[1]);
+          ball2.position = new Vector3(ball1.position.x + predictedVectors[2], ball1.position.y, ball1.position.z + predictedVectors[3]);
+          ball3.position = new Vector3(ball2.position.x + predictedVectors[4], ball2.position.y, ball2.position.z + predictedVectors[5]);
+  
+
+          updateDistancePerIter(lastPosVectors[lastPosVectors.Length - 1], lastPosVectors[lastPosVectors.Length - 2]);
+     }
+
+     void dropNewGreenBall(float x, float y)
+     {
+          var ball = Instantiate(ball1);
+          ball.transform.position.Set(x, 0, y);
+     }
+
+     void dropNewYellowBall(float x, float y)
+     {
+          var ball = Instantiate(ball2);
+          ball.transform.position.Set(x, 0, y);
+     }
+
+     private void updateDistancePerIter(float vx, float vy)
+     {
+          distPerIter = Mathf.Sqrt(Mathf.Pow(vx, 2) + Mathf.Pow(vy, 2));
      }
 
      private void OnGUI()
      {
-          String msg = "";
-          for (int i = 0; i < 6; i+=2)
-               msg += "x: " + predictedVectors[i] + "\ty: " + predictedVectors[i + 1] + "\n";
+          float lastXV, lastYV;
+          lastXV = lastPositions[19] - lastPositions[17];
+
+          lastYV = lastPositions[18] - lastPositions[16];
+          String msg = "x: " + lastXV + "\ty: " + lastYV + "\n";
+          msg += "distPerIter: " + distPerIter + "\n";
           GUI.Label(new Rect(10, 10, 500, 500), msg);
      }
 
-     public void Train(int howManyTimes, DataType dataType)
+     public void Train(int howManyTimes)
      {
-          if (dataType.Equals(DataType.Random))
+          Dataset[] dtst = new Dataset[howManyTimes];
+          for (int i = 0; i < howManyTimes; i++)
           {
-               Dataset[] dtst = new Dataset[howManyTimes];
-               for (int i = 0; i < howManyTimes; i++)
-               {
-                    dtst[i] = new Dataset(inputNeuronCount, outputNeuronCount);
-                    dtst[i].generateData();
-                    //dtst[i].storeDataset();
-                    TrainOnce(dtst[i].inputs, dtst[i].outputs);
-               }
+               dtst[i] = new Dataset(inputNeuronCount, outputNeuronCount);
+               dtst[i].generateData();
+               //dtst[i].storeDataset();
+               TrainOnce(dtst[i].inputs, dtst[i].outputs);
           }
      }
 
@@ -110,8 +131,6 @@ public class Tester : MonoBehaviour
           net.FeedForward(inputs);
           net.BackProp(expectedOutputs);
      }
-
-     public enum DataType { Random, FromFile }
 }
 
 public class Dataset
@@ -125,52 +144,44 @@ public class Dataset
           inputs = new float[inputCount];
           outputs = new float[outputCount];
      }
-
+     
      public void generateData()
      {
-          // 4 random points
-          Point[] points = new Point[4];
+          // for 13 vectros u need 14 points
+          Point[] points = new Point[(inputs.Length + outputs.Length) / 2 + 1];
+
+          //  select a random curve on a circle, pick points from that curve
+
+          // angleStart - starting point of a curve on a circle, at that angle
+          float angleStart, angleEnd;
+          angleStart = UnityEngine.Random.Range(0, Mathf.PI * 2.0f);
+          angleEnd = angleStart + UnityEngine.Random.Range(Mathf.PI / 8, Mathf.PI);
+
+          float angleInc = (angleStart - angleEnd) / (inputs.Length + outputs.Length + 1);
+
+          float angle = angleStart;
+
           for (int i = 0; i < points.Length; i++)
-               points[i] = new Point();
-
-          // we're selecting 4 points on a circle
-          float r = 1.0f;
-          float angle = UnityEngine.Random.Range(0, 2.0f * Mathf.PI);
-
-          // find a random point on a circle
-          points[0].x = r * Mathf.Cos(angle);
-          points[0].y = r * Mathf.Sin(angle);
-
-          // ending point is symmetric by (0,0)
-          points[3].x = -points[0].x;
-          points[3].y = -points[0].y;
-
-          float min, max;
-          if (UnityEngine.Random.Range(0,2) % 2 == 0)
           {
-               min = angle;
-               max = Mathf.PI + angle;
+               float x, y;
+               // assume r = 1
+               x = Mathf.Cos(angle);
+               y = Mathf.Sin(angle);
+
+               points[i] = new Point(x, y);
+
+               angle += angleInc;
           }
-          else
-          {
-               max = angle;
-               min = -Mathf.PI + angle; 
-          }
+          // important, scaling 
+          // take 2 points, calculate distance, scale so the distance is ~0.2
+          float scale = Mathf.Sqrt((points[1].x - points[0].x) * (points[1].x - points[0].x) + (points[1].y - points[0].y) * (points[1].y - points[0].y));
           
-          angle = UnityEngine.Random.Range(min, max);
-          points[1].x = r * Mathf.Cos(angle);
-          points[1].y = r * Mathf.Sin(angle);
-
-          angle = UnityEngine.Random.Range(min, max);
-          points[2].x = r * Mathf.Cos(angle);
-          points[2].y = r * Mathf.Sin(angle);
-
-          // create multiple points on the line connecting 4 points using bezier
-          // i.e (20 + 6)/2 + 1 = 14, this will give 13 vectors
-          int howMany = (inputs.Length + outputs.Length) / 2 + 1;
-
-          Point[] generatedPoints = Bezier(points, howMany);
-          setDatasetFromPoints(generatedPoints);
+          foreach (Point point in points)
+          {
+               point.x = point.x / scale;
+               point.y = point.y / scale;
+          }
+          setDatasetFromPoints(points);
      }
 
      private void setDatasetFromPoints(Point[] generatedPoints)
