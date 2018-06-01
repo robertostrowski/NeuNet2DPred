@@ -15,6 +15,7 @@ public class Tester : MonoBehaviour
      public static int inputNeuronCount = 20;
      public static int outputNeuronCount = 6;
 
+     float iterations = 0;
 
      float[] lastPositions = new float[inputNeuronCount];
      float[] predictedVectors = new float[outputNeuronCount];
@@ -42,45 +43,47 @@ public class Tester : MonoBehaviour
      // Update is called once per frame
      void Update()
      {
-         
-          
-               // new position
-               float newX = playerTransform.position.x;
-               float newY = playerTransform.position.z;
 
-               // nn is taking vectors for input
-               float[] lastPosVectors = new float[lastPositions.Length];
-               // fill the table with vectors except for 2 last elements
-               for(int i = 0; i < lastPosVectors.Length - 2; i++)
-               {
-                    lastPosVectors[i] = lastPositions[i + 2] - lastPositions[i];
-               }
-               // fill the last 2 elements
-               lastPosVectors[lastPosVectors.Length - 2] = newX - lastPosVectors[lastPosVectors.Length - 2];
-               lastPosVectors[lastPosVectors.Length - 1] = newY - lastPosVectors[lastPosVectors.Length - 1];
+          if (iterations++ % 10 != 0)
+               return;
 
-               // shift table, wipe oldest point and make room for new one
-               for (int i = 0; i < lastPositions.Length - 2; i++)
-                    lastPositions[i] = lastPositions[i + 2];
+          // new position
+          float newX = playerTransform.position.x;
+          float newY = playerTransform.position.z;
 
-               // put the new point into the table
-               lastPositions[lastPositions.Length - 2] = newX;
-               lastPositions[lastPositions.Length - 1] = newY;
-                
-               // Get predicted vectors by providing actual vectors
-               predictedVectors = Test(lastPosVectors);
+          // nn is taking vectors for input
+          float[] lastPosVectors = new float[lastPositions.Length];
+          // fill the table with vectors except for 2 last elements
+          for (int i = 0; i < lastPosVectors.Length - 2; i++)
+          {
+               lastPosVectors[i] = lastPositions[i + 2] - lastPositions[i];
+          }
+          // fill the last 2 elements
+          lastPosVectors[lastPosVectors.Length - 2] = newX - lastPositions[lastPosVectors.Length - 2];
+          lastPosVectors[lastPosVectors.Length - 1] = newY - lastPositions[lastPosVectors.Length - 1];
 
-               // set ball positions based on our output
-               ball1.position = new Vector3(playerTransform.position.x + predictedVectors[0], playerTransform.position.y, playerTransform.position.z + predictedVectors[1]);
-               ball2.position = new Vector3(ball1.position.x + predictedVectors[2], ball1.position.y, ball1.position.z + predictedVectors[3]);
-               ball3.position = new Vector3(ball2.position.x + predictedVectors[4], ball2.position.y, ball2.position.z + predictedVectors[5]);
+          // shift table, wipe oldest point and make room for new one
+          for (int i = 0; i < lastPositions.Length - 2; i++)
+               lastPositions[i] = lastPositions[i + 2];
+
+          // put the new point into the table
+          lastPositions[lastPositions.Length - 2] = newX;
+          lastPositions[lastPositions.Length - 1] = newY;
+
+          // Get predicted vectors by providing actual vectors
+          predictedVectors = Test(lastPosVectors);
+
+          // set ball positions based on our output
+          ball1.position = new Vector3(playerTransform.position.x + predictedVectors[0], playerTransform.position.y, playerTransform.position.z + predictedVectors[1]);
+          ball2.position = new Vector3(ball1.position.x + predictedVectors[2], ball1.position.y, ball1.position.z + predictedVectors[3]);
+          ball3.position = new Vector3(ball2.position.x + predictedVectors[4], ball2.position.y, ball2.position.z + predictedVectors[5]);
 
      }
 
      private void OnGUI()
      {
           String msg = "";
-          for (int i = 0; i < 6; i+=2)
+          for (int i = 0; i < 6; i += 2)
                msg += "x: " + predictedVectors[i] + "\ty: " + predictedVectors[i + 1] + "\n";
           GUI.Label(new Rect(10, 10, 500, 500), msg);
      }
@@ -146,7 +149,7 @@ public class Dataset
           points[3].y = -points[0].y;
 
           float min, max;
-          if (UnityEngine.Random.Range(0,2) % 2 == 0)
+          if (UnityEngine.Random.Range(0, 2) % 2 == 0)
           {
                min = angle;
                max = Mathf.PI + angle;
@@ -154,9 +157,9 @@ public class Dataset
           else
           {
                max = angle;
-               min = -Mathf.PI + angle; 
+               min = -Mathf.PI + angle;
           }
-          
+
           angle = UnityEngine.Random.Range(min, max);
           points[1].x = r * Mathf.Cos(angle);
           points[1].y = r * Mathf.Sin(angle);
@@ -196,7 +199,7 @@ public class Dataset
                inputs[i] = vectors[i];
 
           // set outputs
-          for (int j = inputs.Length; j < inputs.Length + outputs.Length; j++)
+          for (int j = inputs.Length; j < vectors.Length; j++)
                outputs[j - inputs.Length] = vectors[j];
      }
 
