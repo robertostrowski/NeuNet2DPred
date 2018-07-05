@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using UnityEngine;
 
 public class Tester : MonoBehaviour
@@ -12,10 +14,20 @@ public class Tester : MonoBehaviour
     private Transform ball2;
     private Transform ball3;
 
+    public int learningIteriations = 1;
+    public float learningRate = 0.00333f;
+    public bool generateNewDatasets;
+    public int numberOfTrainingDatasets;
+    public int numberOfTestingDatasets;
+
+    private readonly string trainingDatasetsPath = Directory.GetCurrentDirectory() + @"\Assets\Neural Network\Data\trainingDatasets.csv";
+    private readonly string testingDatasetsPath = Directory.GetCurrentDirectory() + @"\Assets\Neural Network\Data\testingDatasets.csv";
+    private string errorsPath = Directory.GetCurrentDirectory() + @"\Assets\Neural Network\Data";
+
     public static int inputNeuronCount = 20;
     public static int outputNeuronCount = 6;
 
-    public float distPerIter;
+    private float distPerIter;
 
     float[] lastPositions = new float[inputNeuronCount];
     float[] predictedVectors = new float[outputNeuronCount];
@@ -26,20 +38,76 @@ public class Tester : MonoBehaviour
     // Use this for initialization
     void Start()
     {
-        // Statek
         playerTransform = GameObject.Find("Statek").transform;
-        // 3 punkty do wizualizacji zmian
         ball1 = GameObject.Find("ball1").transform;
         ball2 = GameObject.Find("ball2").transform;
         ball3 = GameObject.Find("ball3").transform;
 
-        // reset table
-        for (int i = 0; i < lastPositions.Length; i++)
-            lastPositions[i] = 0.0f;
+        BuildErrorsFileName();
 
-        net = new NeuralNet(new int[] { inputNeuronCount, 13, outputNeuronCount }, 0.00333f);
-        const int HowManyTimes = 10000;
-        Train(HowManyTimes);
+        if (generateNewDatasets)
+        {
+            Dataset[] datasets = GenerateDatasets(numberOfTrainingDatasets);
+            StoreDatasets(datasets, trainingDatasetsPath);
+
+            datasets = GenerateDatasets(numberOfTestingDatasets);
+            StoreDatasets(datasets, testingDatasetsPath);
+        }
+
+        net = new NeuralNet(new int[] { inputNeuronCount, 13, outputNeuronCount }, learningRate);
+        Dataset[] testDatasets = LoadDatasets(testingDatasetsPath);
+        Dataset[] trainDatasets = LoadDatasets(trainingDatasetsPath);
+
+        // do csv error, wykres, stałe zestawy
+        Train(trainDatasets, trainDatasets.Length, learningIteriations);
+        //Test(testDatasets);
+
+    }
+
+    private void BuildErrorsFileName()
+    {
+        string suffix = "";
+        suffix += "it " + learningIteriations.ToString();
+        suffix += " lr " + learningRate.ToString("n5");
+        suffix += ".csv";
+        errorsPath = Path.Combine(errorsPath, suffix);
+    }
+
+    private void StoreDatasets(Dataset[] datasets, string path)
+    {
+        StringBuilder sb = new StringBuilder();
+        foreach (Dataset ds in datasets)
+        {
+            sb.Append(string.Join(",", ds.inputs.Select(v => v.ToString()).ToArray()));
+            sb.Append(Environment.NewLine);
+            sb.Append(string.Join(",", ds.outputs.Select(v => v.ToString()).ToArray()));
+            sb.Append(Environment.NewLine);
+        }
+        File.WriteAllBytes(path, Encoding.ASCII.GetBytes(sb.ToString()));
+    }
+
+    private Dataset[] LoadDatasets(string path)
+    {
+        string[] s = File.ReadAllLines(path);
+        Dataset[] ds = new Dataset[s.Length / 2];
+        for (int i = 0; i < ds.Length; i++)
+        {
+            float[] inputs = s[2 * i].Split(',').Select(v => float.Parse(v)).ToArray();
+            float[] outputs = s[2 * i + 1].Split(',').Select(v => float.Parse(v)).ToArray();
+            ds[i] = new Dataset(inputs, outputs);
+        }
+        return ds;
+    }
+
+    private Dataset[] GenerateDatasets(int howMany)
+    {
+        Dataset[] ds = new Dataset[howMany];
+        for (int i = 0; i < howMany; i++)
+        {
+            ds[i] = new Dataset(inputNeuronCount, outputNeuronCount);
+            ds[i].generateData();
+        }
+        return ds;
     }
 
     // Update is called once per frame
@@ -47,9 +115,6 @@ public class Tester : MonoBehaviour
     {
         if (iterations++ % 10 != 0)
             return;
-
-        float error;
-        error = Vector3.Distance(ball1.transform.position, transform.position) / distPerIter;
 
         // new position
         float newX = playerTransform.position.x;
@@ -86,6 +151,11 @@ public class Tester : MonoBehaviour
         updateDistancePerIter(lastPosVectors[lastPosVectors.Length - 1], lastPosVectors[lastPosVectors.Length - 2]);
     }
 
+    private float[] Test(float[] lastPosVectors)
+    {
+        return net.FeedForward(lastPosVectors);
+    }
+
     void dropNewGreenBall(float x, float y)
     {
         var ball = Instantiate(ball1);
@@ -103,31 +173,39 @@ public class Tester : MonoBehaviour
         distPerIter = Mathf.Sqrt(Mathf.Pow(vx, 2) + Mathf.Pow(vy, 2));
     }
 
-    private void OnGUI()
+    public void Train(Dataset[] datasets, int howManyDatasets, int noOfIterations)
     {
-        float lastXV, lastYV;
-        lastXV = lastPositions[19] - lastPositions[17];
-
-        lastYV = lastPositions[18] - lastPositions[16];
-        String msg = "Error rate: " + distPerIter.ToString() + "%";
-        GUI.Label(new Rect(10, 10, 500, 500), msg);
-    }
-
-    public void Train(int howManyTimes)
-    {
-        Dataset[] dtst = new Dataset[howManyTimes];
-        for (int i = 0; i < howManyTimes; i++)
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < howManyDatasets; i++)
         {
-            dtst[i] = new Dataset(inputNeuronCount, outputNeuronCount);
-            dtst[i].generateData();
-            //dtst[i].storeDataset();
-            TrainOnce(dtst[i].inputs, dtst[i].outputs);
+            float[] errorVector = net.getErrorVector();
+            String s = string.Join(",", errorVector.Select(v => v.ToString()).ToArray());
+            sb.Append(s);
+            sb.Append(Environment.NewLine);
+
+            for (int j = 0; j < noOfIterations; j++)
+                TrainOnce(datasets[i].inputs, datasets[i].outputs);
         }
+        File.WriteAllBytes(errorsPath, Encoding.ASCII.GetBytes(sb.ToString()));
     }
 
-    public float[] Test(float[] inputs)
+    public void Test(Dataset[] datasets)
     {
-        return net.FeedForward(inputs);
+        StringBuilder sb = new StringBuilder();
+        foreach (Dataset ds in datasets)
+        {
+            float[] outputs = net.FeedForward(ds.inputs);
+            float[] errorVector = ds.outputs;
+            for (int i = 0; i < errorVector.Length; i++)
+            {
+                errorVector[i] -= outputs[i];
+            }
+
+            String s = string.Join(",", errorVector.Select(v => v.ToString()).ToArray());
+            sb.Append(s);
+            sb.Append(Environment.NewLine);
+        }
+        File.WriteAllBytes(errorsPath, Encoding.ASCII.GetBytes(sb.ToString()));
     }
 
     public void TrainOnce(float[] inputs, float[] expectedOutputs)
@@ -149,6 +227,12 @@ public class Dataset
         outputs = new float[outputCount];
     }
 
+    public Dataset(float[] inputs, float[] outputs)
+    {
+        this.inputs = inputs;
+        this.outputs = outputs;
+    }
+
     public void generateData()
     {
         // for 13 vectros u need 14 points
@@ -161,7 +245,7 @@ public class Dataset
 
         angleStart = UnityEngine.Random.Range(0, Mathf.PI * 2.0f);
 
-        randomAngle = UnityEngine.Random.Range(Mathf.PI / 2, Mathf.PI);
+        randomAngle = UnityEngine.Random.Range(Mathf.PI / 2, Mathf.PI * 3 / 4);
 
         angleEnd = UnityEngine.Random.Range(0, 2) % 2 == 0 ? angleStart + randomAngle : angleStart - randomAngle;
 
