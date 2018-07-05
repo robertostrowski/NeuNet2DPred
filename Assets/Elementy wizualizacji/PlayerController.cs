@@ -2,23 +2,22 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour {
+public class PlayerController : MonoBehaviour
+{
 
-    public float speed;
+     public float speed;
 
-	// Use this for initialization
-	void Start () {
-        speed = 70;
-	}
-	
-	// Update is called once per frame
-	void Update () {
-        
+     // Use this for initialization
+     void Start() { }
 
-        float throttle = Input.GetAxis("Vertical");
-        float rotate = Input.GetAxis("Horizontal");
-        
-        GetComponent<Rigidbody>().AddForce(transform.forward * throttle * Time.deltaTime * speed * this.transform.localScale.x);
-        GetComponent<Rigidbody>().AddTorque(transform.up * rotate * Time.deltaTime * speed );
-    }
+     // Update is called once per frame
+     void Update()
+     {
+          // get input
+          float rotate = Input.GetAxis("Horizontal");
+
+          transform.position += transform.forward * speed * Time.deltaTime;
+          var rotateVector = new Vector3(0, rotate, 0);
+          transform.Rotate(rotateVector);
+     }
 }

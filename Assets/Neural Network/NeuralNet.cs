@@ -2,20 +2,18 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using System.IO;
+using System.Linq;
 
-public class NeuralNet : MonoBehaviour {
-
-    int[] layer;
+public class NeuralNet : MonoBehaviour
+{
     Layer[] layers;
     float learningRate;
 
+    public enum DatasetType { Input, Output };
 
     public NeuralNet(int[] layer, float learningRate)
     {
-        this.layer = new int[layer.Length];
-        for (int i = 0; i < layer.Length; i++)
-            this.layer[i] = layer[i];
-
         layers = new Layer[layer.Length - 1];
 
         for (int i = 0; i < layers.Length; i++)
@@ -23,6 +21,12 @@ public class NeuralNet : MonoBehaviour {
             layers[i] = new Layer(layer[i], layer[i + 1]);
         }
         this.learningRate = learningRate;
+    }
+   
+
+    public float[] getErrorVector()
+    {
+        return layers[layers.Length - 1].error;
     }
 
     // Podanie dalej stopniowo całej sieci
@@ -36,17 +40,18 @@ public class NeuralNet : MonoBehaviour {
         return layers[layers.Length - 1].outputs; // zwrot wyjść ostatniej warstwy
     }
 
+    // Propagacja wsteczna (nauka sieci wg tego co oczekujemy)
     public void BackProp(float[] expected)
     {
         for (int i = layers.Length - 1; i >= 0; i--)
         {
-            if(i == layers.Length - 1) // jeśli obecna warstwa jest ostatnią, to nie ma z czego podać wstecz
-                {
+            if (i == layers.Length - 1) // jeśli obecna warstwa jest ostatnią, to nie ma z czego podać wstecz
+            {
                 layers[i].backPropOutput(expected);
-                }
+            }
             else //podajemy w tył wagi i gammy następnych warstw
             {
-                layers[i].backPropHidden(layers[i + 1].gamma, layers[i + 1].weights); 
+                layers[i].backPropHidden(layers[i + 1].gamma, layers[i + 1].weights);
             }
         }
 
@@ -57,26 +62,20 @@ public class NeuralNet : MonoBehaviour {
 
     }
 
-
-	
     public class Layer
     {
-        int numberOfInputs; // liczba neuronów w poprzedniej warstwie
-        int numberOfOutputs; // liczba neuronów w obecnej warstwie
-        
+        public int numberOfInputs; // liczba neuronów w poprzedniej warstwie
+        public int numberOfOutputs; // liczba neuronów w obecnej warstwie
 
-       
-       public float[] outputs;
-       public float[] inputs;
-       public float[ , ] weights;
-       public float[ , ] weightsDelta;
-       public float[] gamma;
-       public float[] error;
-       public static System.Random random = new System.Random(); // dałem System. bo Unity ma swoją wersję Randoma i była kolizja namespaców
+        public float[] outputs;
+        public float[] inputs;
+        public float[,] weights;
+        public float[,] weightsDelta;
+        public float[] gamma;
+        public float[] error;
+        public static System.Random random = new System.Random(); // dałem System. bo Unity ma swoją wersję Randoma i była kolizja namespaców
 
-       
-
-        public Layer( int numberOfInputs, int numberOfOutputs)
+        public Layer(int numberOfInputs, int numberOfOutputs)
         {
             this.numberOfInputs = numberOfInputs;
             this.numberOfOutputs = numberOfOutputs;
@@ -105,7 +104,6 @@ public class NeuralNet : MonoBehaviour {
         // Podanie dalej pojedynczej warstwy
         public float[] FeedForward(float[] inputs)
         {
-
             this.inputs = inputs;
 
             for (int i = 0; i < numberOfOutputs; i++)
@@ -115,10 +113,8 @@ public class NeuralNet : MonoBehaviour {
                 {
                     outputs[i] += inputs[j] * weights[i, j];
                 }
-
                 outputs[i] = (float)Math.Tanh(outputs[i]);
             }
-
             return outputs;
         }
 
@@ -136,8 +132,6 @@ public class NeuralNet : MonoBehaviour {
             for (int i = 0; i < numberOfOutputs; i++)
                 gamma[i] = error[i] * TanHDer(outputs[i]);
 
-
-
             for (int i = 0; i < numberOfOutputs; i++)
             {
                 for (int j = 0; j < numberOfInputs; j++)
@@ -145,10 +139,9 @@ public class NeuralNet : MonoBehaviour {
                     weightsDelta[i, j] = gamma[i] * inputs[j];
                 }
             }
-
         }
 
-        public void backPropHidden( float[] gammaForward, float[,] weightsForward)
+        public void backPropHidden(float[] gammaForward, float[,] weightsForward)
         {
             for (int i = 0; i < numberOfOutputs; i++)
             {
@@ -162,7 +155,7 @@ public class NeuralNet : MonoBehaviour {
                 gamma[i] *= TanHDer(outputs[i]);
             }
 
-            //Caluclating detla weights
+            //Caluclating delta weights
             for (int i = 0; i < numberOfOutputs; i++)
             {
                 for (int j = 0; j < numberOfInputs; j++)
@@ -171,8 +164,6 @@ public class NeuralNet : MonoBehaviour {
                 }
             }
         }
-
-
 
         public void updateWeights(float learningRate)
         {
@@ -184,6 +175,5 @@ public class NeuralNet : MonoBehaviour {
                 }
             }
         }
-
     }
 }
